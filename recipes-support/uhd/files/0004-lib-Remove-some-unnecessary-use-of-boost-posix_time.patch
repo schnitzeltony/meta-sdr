@@ -1,0 +1,129 @@
+From 38a7fa64f464084fa11708bdbe00cfabc311df29 Mon Sep 17 00:00:00 2001
+From: Martin Braun <martin.braun@ettus.com>
+Date: Wed, 9 May 2018 16:56:35 -0700
+Subject: [PATCH] lib: Remove some unnecessary use of boost::posix_time
+
+Replace by std::chrono.
+
+Upstream-Status: Backport [1]
+
+[1] https://github.com/EttusResearch/uhd/commit/38a7fa64f464084fa11708bdbe00cfabc311df29
+---
+ host/lib/usrp/b200/b200_impl.cpp                     | 16 +++++++++++-----
+ host/lib/usrp/common/ad9361_driver/ad9361_device.cpp | 12 ++++++------
+ host/lib/usrp/multi_usrp.cpp                         | 13 ++++++++-----
+ 3 files changed, 25 insertions(+), 16 deletions(-)
+
+diff --git a/host/lib/usrp/b200/b200_impl.cpp b/host/lib/usrp/b200/b200_impl.cpp
+index e2a0e0b..2700dc9 100644
+--- a/host/lib/usrp/b200/b200_impl.cpp
++++ b/host/lib/usrp/b200/b200_impl.cpp
+@@ -37,6 +37,7 @@
+ #include <cstdio>
+ #include <ctime>
+ #include <cmath>
++#include <chrono>
+ 
+ #include "../../transport/libusb1_base.hpp"
+ 
+@@ -45,7 +46,9 @@ using namespace uhd::usrp;
+ using namespace uhd::usrp::gpio_atr;
+ using namespace uhd::transport;
+ 
+-static const boost::posix_time::milliseconds REENUMERATION_TIMEOUT_MS(3000);
++namespace {
++    constexpr int64_t  REENUMERATION_TIMEOUT_MS = 3000;
++}
+ 
+ // B200 + B210:
+ class b200_ad9361_client_t : public ad9361_params {
+@@ -208,12 +211,15 @@ static device_addrs_t b200_find(const device_addr_t &hint)
+         found++;
+     }
+ 
+-    const boost::system_time timeout_time = boost::get_system_time() + REENUMERATION_TIMEOUT_MS;
++    const auto timeout_time =
++        std::chrono::steady_clock::now()
++        + std::chrono::milliseconds(REENUMERATION_TIMEOUT_MS);
+ 
+     //search for the device until found or timeout
+-    while (boost::get_system_time() < timeout_time and b200_addrs.empty() and found != 0)
+-    {
+-        BOOST_FOREACH(usb_device_handle::sptr handle, get_b200_device_handles(hint))
++    while (std::chrono::steady_clock::now() < timeout_time
++            and b200_addrs.empty()
++            and found != 0) {
++        for(usb_device_handle::sptr handle:  get_b200_device_handles(hint)) {
+         {
+             usb_control::sptr control;
+             try{control = usb_control::make(handle, 0);}
+diff --git a/host/lib/usrp/common/ad9361_driver/ad9361_device.cpp b/host/lib/usrp/common/ad9361_driver/ad9361_device.cpp
+index e2ed2c7..3ca5dc0 100644
+--- a/host/lib/usrp/common/ad9361_driver/ad9361_device.cpp
++++ b/host/lib/usrp/common/ad9361_driver/ad9361_device.cpp
+@@ -2196,15 +2196,15 @@ double ad9361_device_t::_get_temperature(const double cal_offset, const double t
+     _io_iface->poke8(0x00B, 0); //set offset to 0
+ 
+     _io_iface->poke8(0x00C, 0x01); //start reading, clears bit 0x00C[1]
+-    boost::posix_time::ptime start_time = boost::posix_time::microsec_clock::local_time();
+-    boost::posix_time::time_duration elapsed;
++    auto end_time =
++        std::chrono::steady_clock::now()
++        + std::chrono::milliseconds(int64_t(timeout * 1000));
+     //wait for valid data (toggle of bit 1 in 0x00C)
+     while(((_io_iface->peek8(0x00C) >> 1) & 0x01) == 0) {
+         boost::this_thread::sleep(boost::posix_time::microseconds(100));
+-        elapsed = boost::posix_time::microsec_clock::local_time() - start_time;
+-        if(elapsed.total_milliseconds() > (timeout*1000))
+-        {
+-            throw uhd::runtime_error("[ad9361_device_t] timeout while reading temperature");
++        if (std::chrono::steady_clock::now() > end_time) {
++            throw uhd::runtime_error(
++                "[ad9361_device_t] timeout while reading temperature");
+         }
+     }
+     _io_iface->poke8(0x00C, 0x00); //clear read flag
+diff --git a/host/lib/usrp/multi_usrp.cpp b/host/lib/usrp/multi_usrp.cpp
+index ac0f522..dca082c 100644
+--- a/host/lib/usrp/multi_usrp.cpp
++++ b/host/lib/usrp/multi_usrp.cpp
+@@ -35,6 +35,7 @@
+ #include <boost/algorithm/string.hpp>
+ #include <algorithm>
+ #include <cmath>
++#include <chrono>
+ 
+ using namespace uhd;
+ using namespace uhd::usrp;
+@@ -557,13 +558,14 @@ public:
+     }
+ 
+     void set_time_unknown_pps(const time_spec_t &time_spec){
+-        UHD_MSG(status) << "    1) catch time transition at pps edge" << std::endl;
+-        boost::system_time end_time = boost::get_system_time() + boost::posix_time::milliseconds(1100);
++        UHD_MSG(status)
++            << "    1) catch time transition at pps edge" << std::endl;
++        auto end_time = std::chrono::steady_clock::now()
++                            + std::chrono::milliseconds(1100);
+         time_spec_t time_start_last_pps = get_time_last_pps();
+         while (time_start_last_pps == get_time_last_pps())
+         {
+-            if (boost::get_system_time() > end_time)
+-            {
++            if (std::chrono::steady_clock::now() > end_time) {
+                 throw uhd::runtime_error(
+                     "Board 0 may not be getting a PPS signal!\n"
+                     "No PPS detected within the time interval.\n"
+@@ -573,7 +575,8 @@ public:
+             boost::this_thread::sleep(boost::posix_time::milliseconds(1));
+         }
+ 
+-        UHD_MSG(status) << "    2) set times next pps (synchronously)" << std::endl;
++        UHD_MSG(status)
++            << "    2) set times next pps (synchronously)" << std::endl;
+         set_time_next_pps(time_spec, ALL_MBOARDS);
+         boost::this_thread::sleep(boost::posix_time::seconds(1));
+ 
+-- 
+2.14.5
+

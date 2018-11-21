@@ -1,0 +1,31 @@
+From 9ec16940fdd49836e36c60d10884b38770125a58 Mon Sep 17 00:00:00 2001
+From: Jan Beich <jbeich@FreeBSD.org>
+Date: Tue, 17 Apr 2018 16:57:15 -0700
+Subject: [PATCH] lib: Unbreak build against Boost 1.67
+
+Some uses of boost::posix_time were incorrect and would cause compiler
+errors on Boost 1.67.
+
+Upstream-Status: Backport [1]
+
+[1] https://github.com/EttusResearch/uhd/commit/9ec16940fdd49836e36c60d10884b38770125a58
+---
+ host/lib/transport/nirio/rpc/usrprio_rpc_client.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/host/lib/transport/nirio/rpc/usrprio_rpc_client.cpp b/host/lib/transport/nirio/rpc/usrprio_rpc_client.cpp
+index 7582b4734..af79cfb7c 100644
+--- a/host/lib/transport/nirio/rpc/usrprio_rpc_client.cpp
++++ b/host/lib/transport/nirio/rpc/usrprio_rpc_client.cpp
+@@ -19,7 +19,7 @@ usrprio_rpc_client::usrprio_rpc_client(
+     std::string server,
+     std::string port
+ ) : _rpc_client(server, port, uhd::get_process_id(), uhd::get_host_id()),
+-    _timeout(boost::posix_time::milliseconds(DEFAULT_TIMEOUT_IN_MS))
++    _timeout(boost::posix_time::milliseconds(long(DEFAULT_TIMEOUT_IN_MS)))
+ {
+    _ctor_status = _rpc_client.status() ? NiRio_Status_RpcConnectionError : NiRio_Status_Success;
+ }
+-- 
+2.14.5
+
