@@ -3,42 +3,42 @@ URL = "http://gnuradio.org"
 LICENSE = "GPLv3"
 LIC_FILES_CHKSUM = "file://COPYING;md5=d32239bcb673463ab874e80d47fae504"
 
-DEPENDS = "volk gsl fftw python3 python3-six-native alsa-lib boost \
-           swig-native python3-numpy  log4cpp \
-           python3-mako-native git-native gmp"
+DEPENDS = "volk gsl fftw python python-six-native alsa-lib boost \
+           swig-native python-numpy log4cpp \
+           python-mako-native git-native gmp"
 
 #Available PACKAGECONFIG options are qtgui5 grc uhd logging orc ctrlport zeromq staticlibs
 PACKAGECONFIG ??= "qtgui5 grc uhd zeromq"
 
 PACKAGECONFIG[qtgui5] = "-DENABLE_GR_QTGUI=ON \
-                 ,-DENABLE_GR_QTGUI=OFF,qtbase qwt-qt5 python3-pyqt5, "
-PACKAGECONFIG[grc] = "-DENABLE_GRC=ON,-DENABLE_GRC=OFF,python3-mako, "
+                 ,-DENABLE_GR_QTGUI=OFF,qtbase qwt-qt5 python-pyqt5, "
+PACKAGECONFIG[grc] = "-DENABLE_GRC=ON,-DENABLE_GRC=OFF,python-mako, "
 PACKAGECONFIG[uhd] = "-DENABLE_GR_UHD=ON,-DENABLE_GR_UHD=OFF,uhd,"
 PACKAGECONFIG[logging] = "-DENABLE_GR_LOG=ON,-DENABLE_GR_LOG=OFF,log4cpp, "
 PACKAGECONFIG[orc] = "-DENABLE_ORC=ON,-DENABLE_ORC=OFF,orc, "
 PACKAGECONFIG[ctrlport] = "-DENABLE_GR_CTRLPORT=ON,-DENABLE_GR_CTRLPORT=OFF,thrift thrift-native, "
-PACKAGECONFIG[zeromq] = "-DENABLE_GR_ZEROMQ=ON,-DENABLE_GR_ZEROMQ=OFF,cppzmq python3-pyzmq, "
+PACKAGECONFIG[zeromq] = "-DENABLE_GR_ZEROMQ=ON,-DENABLE_GR_ZEROMQ=OFF,cppzmq python-pyzmq, "
 PACKAGECONFIG[staticlibs] = "-DENABLE_STATIC_LIBS=ON,-DENABLE_STATIC_LIBS=OFF "
 
-inherit distutils-base cmake pkgconfig python3native
+inherit distutils-base cmake pkgconfig pythonnative
 inherit ${@bb.utils.contains('PACKAGECONFIG', 'qtgui5',' cmake_qt5', '', d)}
 
 export BUILD_SYS
 export HOST_SYS="${MULTIMACH_TARGET_SYS}"
 
-RDEPENDS_${PN} = "python3-core python3-audio python3-threading python3-codecs \
-                  python3-shell python3-pickle \
-                  python3-pkgutil python3-pydoc python3-mmap \
-                  python3-netclient python3-difflib \
-                  python3-pprint python3-numpy  \
+RDEPENDS_${PN} = "python-core python-audio python-threading python-codecs \
+                  python-shell python-pickle \
+                  python-pkgutil python-pydoc python-mmap \
+                  python-netclient python-difflib \
+                  python-pprint python-numpy python-pyyaml \
 "
 RRECOMMENDS_${PN} = "${GR_PACKAGES}"
 
-RDEPENDS_${PN}-grc = "python3-lxml python3-mako python3-netserver"
+RDEPENDS_${PN}-grc = "python-lxml python-mako python-netserver"
 
-RDEPENDS_${PN}-qtgui = "python3-pyqt5 python3-sip3"
+RDEPENDS_${PN}-qtgui = "python-pyqt5 python-sip"
 
-RDEPENDS_${PN}-zeromq = "python3-pyzmq"
+RDEPENDS_${PN}-zeromq = "python-pyzmq"
 
 C_FILES_CHKSUM = "file://COPYING;md5=d32239bcb673463ab874e80d47fae504"
 
@@ -233,9 +233,8 @@ EXTRA_OECMAKE = "-DENABLE_GR_ATSC=FALSE \
                  -DENABLE_GR_VOCODER=OFF \
                  -DENABLE_INTERNAL_VOLK=OFF \
                  -DENABLE_TESTING=OFF \
+                 -DPYTHON_EXECUTABLE=${PYTHON} \
+                 -DGR_PYTHON_DIR=${PYTHON_SITEPACKAGES_DIR} \
                  ${@bb.utils.contains('TUNE_FEATURES', 'neon', \
                      '-Dhave_mfpu_neon=1', '-Dhave_mfpu_neon=0', d)} \
 "
-
-inherit distutils-base cmake pkgconfig
-
